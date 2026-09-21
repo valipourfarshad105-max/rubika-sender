@@ -194,12 +194,26 @@ class RubikaService:
         # "file_name must be specified when uploading from bytes" متوقف می‌شود.
         file_name = Path(photo_path).name
 
+        # نکتهٔ فنی مهم‌تر (باگ واقعی در خودِ کتابخانهٔ rubpy):
+        # وقتی Pillow نصب باشد، تابع ساخت "تصویر بندانگشتی" (thumbnail) داخل rubpy
+        # به‌اشتباه کل عکس را در همان اندازهٔ اصلی برمی‌گرداند (به‌جای کوچک‌کردنش).
+        # این تصویر کامل به‌صورت متن base64 داخل بدنهٔ درخواست جاسازی می‌شود و باعث
+        # می‌شود حجم درخواست از سقف مجاز سرورهای روبیکا رد شود (خطای 413 Request
+        # Entity Too Large روی همهٔ سرورها، که در ظاهر شبیه «هنگ کردن» برنامه است).
+        # چون این کتابخانه دیگر به‌روزرسانی نمی‌شود، این باگ را با غیرفعال‌کردن
+        # ساخت thumbnail دور می‌زنیم. نکتهٔ ظریف: باید دقیقاً thumb=None بدهیم
+        # نه thumb=False — چون با False، کدِ داخلی کتابخانه به‌اشتباه نوعِ پیام را
+        # از «عکس» به «فایلِ ضمیمهٔ عمومی» تغییر می‌دهد و گیرنده دیگر آن را به‌صورت
+        # عکس نمی‌بیند. با None، نوعِ پیام «عکس» درست باقی می‌ماند و فقط پیش‌نمایش
+        # ریزِ خراب ساخته نمی‌شود؛ خودِ عکسِ اصلی و کامل بدون مشکل ارسال می‌شود.
         if len(clean_text) <= CAPTION_LIMIT:
-            await self._client.send_photo(guid, photo_bytes, caption=clean_text or None, file_name=file_name)
+            await self._client.send_photo(
+                guid, photo_bytes, caption=clean_text or None, file_name=file_name, thumb=None
+            )
             return
 
         # عکس بدون کپشن، بعد کل متن به‌صورت پیام(های) جداگانه — هیچ بریدگی‌ای رخ نمی‌دهد
-        await self._client.send_photo(guid, photo_bytes, file_name=file_name)
+        await self._client.send_photo(guid, photo_bytes, file_name=file_name, thumb=None)
         await self._send_text_async(guid, clean_text)
 
     def send_smart(self, guid: str, text: str, photo_path: str | None):
