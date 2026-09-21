@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>پنل ارسال روبیکا (اکانت شخصی)</title>
+<style>
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font-family: Tahoma, Arial, sans-serif;
+        background: #f3f5f7;
+        color: #222;
+    }
+    .container { max-width: 1100px; margin: 30px auto; padding: 15px; }
+    .card {
+        background: white;
+        border-radius: 14px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 5px 20px rgba(0,0,0,.07);
+    }
+    h1 { margin-top: 0; }
+    h2 { margin-top: 0; font-size: 20px; }
+    label { display: block; margin-bottom: 7px; font-weight: bold; }
+    input, textarea, button, select { font-family: inherit; }
+    input[type="text"], input[type="password"], input[type="number"],
+    input[type="file"], textarea, select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        font-size: 15px;
+    }
+    textarea { min-height: 140px; resize: vertical; }
+    button {
+        border: 0;
+        border-radius: 8px;
+        padding: 11px 18px;
+        cursor: pointer;
+        background: #ee6602;
+        color: white;
+        font-size: 15px;
+        margin-left: 5px;
+        margin-bottom: 8px;
+    }
+    button:hover { opacity: .9; }
+    button.secondary { background: #555; }
+    button.success { background: #198754; }
+    button.danger { background: #dc3545; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+    .preview { max-width: 250px; max-height: 250px; display: none; margin-top: 10px; border-radius: 10px; }
+    .status { padding: 12px; border-radius: 8px; margin-top: 15px; display: none; }
+    .status.success { background: #d1e7dd; color: #0f5132; display: block; }
+    .status.error { background: #f8d7da; color: #842029; display: block; }
+    .status.info { background: #cfe2ff; color: #084298; display: block; }
+    .status.warn { background: #fff3cd; color: #664d03; display: block; }
+    .numbers-box { max-height: 350px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: right; }
+    th { background: #f7f7f7; position: sticky; top: 0; }
+    .badge { padding: 4px 8px; border-radius: 6px; font-size: 12px; }
+    .badge.sent { background: #d1e7dd; color: #0f5132; }
+    .badge.failed { background: #f8d7da; color: #842029; }
+    .badge.notfound { background: #fff3cd; color: #664d03; }
+    .small { color: #777; font-size: 13px; }
+    .charcount { text-align: left; direction: ltr; font-size: 13px; color: #777; margin-top: -10px; margin-bottom: 15px; }
+    .charcount.warn { color: #b45309; font-weight: bold; }
+    .charcount.over { color: #dc3545; font-weight: bold; }
+    .progress-wrap { background: #eee; border-radius: 8px; overflow: hidden; height: 22px; margin: 12px 0; }
+    .progress-bar { height: 100%; background: #ee6602; width: 0%; transition: width .3s; text-align: center; color: white; font-size: 12px; line-height: 22px; }
+    .savebadge { display:inline-block; font-size: 12px; color: #198754; margin-right: 8px; opacity: 0; transition: opacity .3s; }
+    .savebadge.show { opacity: 1; }
+    .photoActions { display:flex; align-items:center; gap:10px; flex-wrap: wrap; }
+    .rl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .rl-item { background: #f7f7f7; border-radius: 8px; padding: 10px 14px; font-size: 13px; }
+    .rl-item b { display:block; font-size: 16px; margin-top: 3px; }
+    @media(max-width: 700px) {
+        .row, .row3, .rl-grid { grid-template-columns: 1fr; }
+        .container { margin-top: 10px; }
+        .card { padding: 16px; }
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="card">
+        <h1>🟠 پنل ارسال روبیکا (اکانت شخصی)</h1>
+        <label>رمز پنل</label>
+        <input type="password" id="token" placeholder="Admin Token">
+        <p class="small">رمز همان مقدار ADMIN_TOKEN در فایل .env است. با وارد کردن رمز، تمام اطلاعات ذخیره‌شده (شماره‌ها، متن پیام، عکس و وضعیت ارسال) به‌طور خودکار از روی سرور بارگذاری می‌شود؛ حتی اگر از گوشی یا دستگاه دیگری وارد شده باشی.</p>
+        <button onclick="manualLoadState()">ورود و بارگذاری اطلاعات</button>
+        <span class="small">این پنل روی سرور ذخیره می‌شود، نه روی مرورگر — پس با باز کردن از هر دستگاهی همه‌چیز آماده است.</span>
+        <div id="loadStatus" class="status"></div>
+        <div id="accountInfo" class="status info" style="display:none; margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+        <h2>⚠️ نکتهٔ مهم دربارهٔ ریسک این پنل</h2>
+        <p class="small">
+            روبیکا برخلاف تلگرام، API رسمی برای حساب شخصی ندارد. این پنل از یک کتابخانهٔ غیررسمی
+            استفاده می‌کند که ممکن است در آینده تغییر کند یا با محدودیت روبه‌رو شود.
+            برای کاهش ریسک محدود شدن حساب، این پنل به‌طور پیش‌فرض <b>محتاط‌تر از پنل تلگرام</b> عمل می‌کند:
+            حداقل فاصلهٔ زمانی طولانی‌تر بین ارسال‌ها، و سقف روزانه برای تعداد مخاطب جدیدی که اضافه می‌شود.
+        </p>
+        <div class="rl-grid" id="rlGrid"></div>
+    </div>
+
+    <!-- Excel -->
+    <div class="card">
+        <h2>۱. وارد کردن شماره‌ها از Excel</h2>
+        <p class="small">شماره تلفن‌ها باید در ستون اول فایل Excel باشند (مثل 09121234567 یا +989121234567)</p>
+        <p class="small">این فایل روی سرور ذخیره می‌شود؛ نیازی به وارد کردن دوباره در دستگاه دیگر نیست، مگر بخواهی لیست را تغییر بدهی.</p>
+        <input type="file" id="excel" accept=".xlsx,.xls,.csv">
+        <button onclick="importExcel()">وارد کردن شماره‌ها</button>
+        <div id="excelStatus" class="status"></div>
+    </div>
+
+    <!-- Numbers -->
+    <div class="card">
+        <h2>۲. شماره‌ها</h2>
+        <div id="numbersInfo">هنوز فایلی وارد نشده است.</div>
+        <br>
+        <div class="numbers-box">
+            <table>
+                <thead>
+                <tr>
+                    <th><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
+                    <th>شماره</th>
+                    <th>وضعیت</th>
+                </tr>
+                </thead>
+                <tbody id="numbersBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Message -->
+    <div class="card">
+        <h2>۳. پیام</h2>
+        <p class="small">متن و عکس هر دو به‌صورت خودکار روی سرور ذخیره می‌شوند و با باز کردن پنل از هر دستگاهی، همان‌ها را می‌بینی.</p>
+        <label>متن پیام <span id="textSaveBadge" class="savebadge">✔ ذخیره شد</span></label>
+        <textarea id="message" placeholder="متن پیام را وارد کنید..." oninput="onMessageInput()"></textarea>
+        <div id="charCount" class="charcount">0 کاراکتر</div>
+
+        <label>عکس (اختیاری)</label>
+        <div class="photoActions">
+            <input type="file" id="photo" accept="image/jpeg,image/png,image/webp,image/gif" style="width:auto; flex: 1;">
+            <button class="danger" onclick="removePhoto()">حذف عکس ذخیره‌شده</button>
+        </div>
+        <img id="preview" class="preview">
+        <div id="photoStatus" class="status"></div>
+
+        <p class="small" id="captionHint"></p>
+    </div>
+
+    <!-- Single send -->
+    <div class="card">
+        <h2>۴. ارسال دستی (تک شماره)</h2>
+        <p class="small">فقط یک شماره از لیست بالا تیک بزن و دکمهٔ زیر را بزن. متن و عکس همان‌هایی است که در بخش بالا ذخیره شده.</p>
+        <p class="small">توجه: پیش از ارسال، این شماره به‌صورت خودکار به مخاطبین حساب روبیکای تو اضافه می‌شود (این یک محدودیت فنی خودِ روبیکاست).</p>
+        <button class="success" onclick="sendSelectedSingle()">ارسال به شماره انتخاب‌شده</button>
+        <button class="secondary" onclick="clearSelection()">پاک کردن انتخاب</button>
+        <div id="sendStatus" class="status"></div>
+    </div>
+
+    <!-- Batch send -->
+    <div class="card">
+        <h2>۵. ارسال گروهی کنترل‌شده (ادامه‌دار)</h2>
+        <p class="small">
+            برای جلوگیری از مسدود شدن حساب، حداقل تأخیر مجاز بین ارسال‌ها <b id="minDelayText">۶ ثانیه</b> است
+            (بیشتر از پنل تلگرام، چون کتابخانهٔ روبیکا غیررسمی است و باید محتاط‌تر عمل کرد).
+            پیشنهاد می‌شود این ابزار را فقط برای مخاطبانی استفاده کنی که دریافت پیام از تو را پذیرفته‌اند.
+        </p>
+        <p class="small">
+            ✅ محل توقف قبلی روی سرور ذخیره می‌شود؛ یعنی اگر بار اول به ۵۰ شماره اول ارسال کنی،
+            دفعهٔ بعد — حتی از گوشی یا بعد از ری‌استارت سرور — ارسال از شمارهٔ ۵۱ به بعد ادامه پیدا می‌کند
+            و از ابتدای لیست تکرار نمی‌شود. اگر یک ارسال گروهی روی سیستم دیگری در حال اجرا باشد،
+            با باز کردن پنل از گوشی، پیشرفت آن را به‌صورت زنده می‌بینی.
+        </p>
+        <p class="small">
+            ⏳ اگر در بین ارسال گروهی به سقف تعداد پیام در دقیقه/ساعت یا سقف افزودن مخاطب روزانه برسی،
+            پنل به‌صورت خودکار صبر می‌کند تا نوبت بعدی برسد؛ نیازی به دخالت دستی نیست.
+        </p>
+
+        <div class="row3">
+            <div>
+                <label>تعداد ارسال در این نوبت</label>
+                <input type="number" id="sendCount" min="1" placeholder="مثلاً 50">
+            </div>
+            <div>
+                <label>تأخیر بین ارسال‌ها (ثانیه)</label>
+                <input type="number" id="delaySec" min="6" value="12">
+            </div>
+            <div>
+                <label>شماره‌های باقی‌ماندهٔ ارسال‌نشده</label>
+                <input type="text" id="remainingCount" value="0" disabled>
+            </div>
+        </div>
+
+        <div id="cursorInfo" class="status info" style="display:block;">هنوز فایلی وارد نشده است.</div>
+
+        <button class="success" onclick="startBatch()">شروع ارسال گروهی</button>
+        <button class="danger" onclick="stopBatch()">توقف</button>
+        <button class="secondary" onclick="resetCursor()">بازنشانی و شروع دوباره از ابتدای لیست</button>
+
+        <div class="progress-wrap">
+            <div class="progress-bar" id="progressBar">0%</div>
+        </div>
+        <div id="batchStatus" class="status"></div>
+    </div>
+
+    <!-- Report -->
+    <div class="card">
+        <h2>۶. گزارش</h2>
+        <div id="reportSummary">هنوز گزارشی ثبت نشده است.</div>
+        <br>
+        <button onclick="downloadReport()">دانلود گزارش Excel</button>
+        <button class="danger" onclick="clearReport()">پاک کردن گزارش</button>
+    </div>
+
+</div>
+
+<script>
+let numbers = [];   // [{ phone, status }]  -- از سرور می‌آید
+let results = [];   // [{ phone, status, error, time }] -- از سرور می‌آید
+let hasPhoto = false;
+let pollTimer = null;
+let messageSaveTimer = null;
+let minDelayMs = 6000;
+
+const TEXT_LIMIT = 4000;
+const CAPTION_LIMIT = 1024;
+const TOKEN_STORAGE_KEY = "rubikaSenderToken";
+
+/* ---------------- Token ---------------- */
+
+function getToken() {
+    return document.getElementById("token").value.trim();
+}
+
+function showStatus(id, message, type) {
+    const el = document.getElementById(id);
+    el.className = "status " + type;
+    el.innerText = message;
+}
+
+async function authFetch(url, options = {}) {
+    const token = getToken();
+    options.headers = options.headers || {};
+    options.headers["Authorization"] = "Bearer " + token;
+    return fetch(url, options);
+}
+
+/* ---------------- Load state from server ---------------- */
+
+async function manualLoadState() {
+    const token = getToken();
+    if (!token) {
+        showStatus("loadStatus", "رمز پنل را وارد کن.", "error");
+        return;
+    }
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    await loadStateFromServer(true);
+}
+
+async function loadStateFromServer(showMessage) {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+        const response = await authFetch("/api/state");
+        if (response.status === 401 || response.status === 403) {
+            showStatus("loadStatus", "رمز پنل اشتباه است.", "error");
+            return;
+        }
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || "خطا در بارگذاری اطلاعات");
+
+        applyState(data.state);
+
+        if (showMessage) {
+            showStatus("loadStatus", "اطلاعات ذخیره‌شده روی سرور با موفقیت بارگذاری شد.", "success");
+        }
+    } catch (error) {
+        showStatus("loadStatus", error.message, "error");
+    }
+}
+
+function applyState(state) {
+    numbers = state.numbers || [];
+    results = state.results || [];
+    hasPhoto = !!state.photo;
+    minDelayMs = state.minDelayMs || minDelayMs;
+
+    renderNumbers();
+    updateReport();
+    renderCursorInfo(state);
+    renderRateLimit(state.rateLimit);
+
+    if (state.account && state.account.name) {
+        const el = document.getElementById("accountInfo");
+        el.style.display = "block";
+        el.innerText = `✅ متصل به حساب روبیکا: ${state.account.name}`;
+    }
+
+    document.getElementById("minDelayText").innerText = Math.round(minDelayMs / 1000) + " ثانیه";
+    document.getElementById("delaySec").min = Math.round(minDelayMs / 1000);
+
+    document.getElementById("message").value = state.text || "";
+    updateCharCount();
+
+    if (hasPhoto) {
+        loadPhotoPreview();
+    } else {
+        document.getElementById("preview").style.display = "none";
+    }
+
+    const remaining = state.remaining || 0;
+    document.getElementById("sendCount").max = remaining;
+    if (!document.getElementById("sendCount").value) {
+        document.getElementById("sendCount").value = Math.min(50, remaining || 1);
+    }
+
+    if (state.batch && state.batch.delayMs) {
+        document.getElementById("delaySec").value = Math.round(state.batch.delayMs / 1000);
+    }
+
+    updateBatchStatusUI(state.batch);
+
+    if (state.batch && state.batch.status === "running") {
+        startPolling();
+    }
+}
+
+function renderRateLimit(rl) {
+    if (!rl) return;
+    const grid = document.getElementById("rlGrid");
+    grid.innerHTML = `
+        <div class="rl-item">پیام در دقیقهٔ اخیر <b>${rl.messages_last_minute} / ${rl.max_messages_per_minute}</b></div>
+        <div class="rl-item">پیام در ساعت اخیر <b>${rl.messages_last_hour} / ${rl.max_messages_per_hour}</b></div>
+        <div class="rl-item">مخاطب جدید در ۲۴ ساعت اخیر <b>${rl.new_contacts_last_24h} / ${rl.max_new_contacts_per_day}</b></div>
+    `;
+}
+
+async function loadPhotoPreview() {
+    try {
+        const response = await authFetch("/media/photo");
+        if (!response.ok) throw new Error("خطا در دریافت عکس");
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const preview = document.getElementById("preview");
+        preview.src = url;
+        preview.style.display = "block";
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+/* ---------------- Character counter ---------------- */
+
+function updateCharCount() {
+    const text = document.getElementById("message").value;
+    const limit = hasPhoto ? CAPTION_LIMIT : TEXT_LIMIT;
+    const el = document.getElementById("charCount");
+    const hint = document.getElementById("captionHint");
+
+    el.className = "charcount";
+    if (text.length > limit) {
+        el.className += " over";
+    } else if (text.length > limit * 0.9) {
+        el.className += " warn";
+    }
+
+    el.innerText = `${text.length} / ${limit} کاراکتر` + (hasPhoto ? " (سقف احتیاطی کپشن عکس)" : " (سقف احتیاطی پیام متنی)");
+
+    if (hasPhoto && text.length > CAPTION_LIMIT) {
+        hint.innerText = "ℹ️ محدودیت دقیق کپشن عکس در روبیکا به‌طور رسمی مستند نیست؛ برای اطمینان، اگر متن طولانی باشد، عکس بدون کپشن فرستاده می‌شود و بلافاصله بعد از آن، کل متن کامل (بدون هیچ‌گونه بریدگی) به‌صورت پیام جداگانه ارسال خواهد شد. نیازی به کوتاه کردن دستی متن نیست.";
+    } else {
+        hint.innerText = "";
+    }
+}
+
+function onMessageInput() {
+    updateCharCount();
+    if (messageSaveTimer) clearTimeout(messageSaveTimer);
+    messageSaveTimer = setTimeout(saveMessageText, 600);
+}
+
+async function saveMessageText() {
+    const token = getToken();
+    if (!token) return;
+    const text = document.getElementById("message").value;
+    try {
+        const response = await authFetch("/api/state/text", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+        });
+        const data = await response.json();
+        if (data.success) flashSaveBadge("textSaveBadge");
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+function flashSaveBadge(id) {
+    const el = document.getElementById(id);
+    el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 1500);
+}
+
+document.getElementById("photo").addEventListener("change", async function () {
+    if (!this.files.length) return;
+    const token = getToken();
+    if (!token) {
+        showStatus("photoStatus", "ابتدا رمز پنل را وارد کن.", "error");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("photo", this.files[0]);
+
+    try {
+        showStatus("photoStatus", "در حال آپلود و ذخیرهٔ عکس روی سرور...", "info");
+        const response = await authFetch("/api/state/photo", { method: "POST", body: formData });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || "خطا در آپلود عکس");
+
+        hasPhoto = true;
+        await loadPhotoPreview();
+        updateCharCount();
+        showStatus("photoStatus", "عکس روی سرور ذخیره شد و از این پس در همهٔ دستگاه‌ها در دسترس است.", "success");
+    } catch (error) {
+        showStatus("photoStatus", error.message, "error");
+    }
+});
+
+async function removePhoto() {
+    const token = getToken();
+    if (!token) { showStatus("photoStatus", "ابتدا رمز پنل را وارد کن.", "error"); return; }
+    try {
+        const response = await authFetch("/api/state/photo", { method: "DELETE" });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || "خطا در حذف عکس");
+
+        hasPhoto = false;
+        document.getElementById("preview").style.display = "none";
+        document.getElementById("photo").value = "";
+        updateCharCount();
+        showStatus("photoStatus", "عکس ذخیره‌شده حذف شد.", "info");
+    } catch (error) {
+        showStatus("photoStatus", error.message, "error");
+    }
+}
+
+/* ---------------- Excel import ---------------- */
+
+async function importExcel() {
+    const fileInput = document.getElementById("excel");
+    if (!fileInput.files.length) {
+        showStatus("excelStatus", "ابتدا فایل Excel را انتخاب کنید.", "error");
+        return;
+    }
+    const token = getToken();
+    if (!token) {
+        showStatus("excelStatus", "رمز پنل را وارد کنید.", "error");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("excel", fileInput.files[0]);
+
+    try {
+        showStatus("excelStatus", "در حال خواندن و ذخیرهٔ فایل روی سرور...", "info");
+
+        const response = await authFetch("/api/state/excel", { method: "POST", body: formData });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || "خطا در Excel");
+
+        applyState(data.state);
+        showStatus("excelStatus", `${data.count} شماره معتبر با موفقیت وارد و روی سرور ذخیره شد.`, "success");
+    } catch (error) {
+        showStatus("excelStatus", error.message, "error");
+    }
+}
+
+/* ---------------- Render numbers table ---------------- */
+
+function renderNumbers() {
+    const body = document.getElementById("numbersBody");
+    body.innerHTML = "";
+
+    numbers.forEach((item, index) => {
+        const row = document.createElement("tr");
+        let status = "-";
+        if (item.status === "sent") status = `<span class="badge sent">ارسال شد</span>`;
+        else if (item.status === "failed") status = `<span class="badge failed">ناموفق</span>`;
+        else if (item.status === "not_found") status = `<span class="badge notfound">روبیکا ندارد</span>`;
+
+        row.innerHTML = `
+            <td><input type="checkbox" class="numberCheck" data-index="${index}"></td>
+            <td>${escapeHtml(item.phone)}</td>
+            <td>${status}</td>
+        `;
+        body.appendChild(row);
+    });
+
+    document.getElementById("numbersInfo").innerText = `${numbers.length} شماره وارد شده است.`;
+}
+
+function toggleAll(checkbox) {
+    document.querySelectorAll(".numberCheck").forEach(c => c.checked = checkbox.checked);
+}
+
+function clearSelection() {
+    document.querySelectorAll(".numberCheck").forEach(c => c.checked = false);
+    document.getElementById("selectAll").checked = false;
+}
+
+/* ---------------- Cursor info ---------------- */
+
+function renderCursorInfo(state) {
+    const numbersCount = numbers.length;
+    const cursor = state ? state.cursor : 0;
+    const remaining = state ? state.remaining : Math.max(0, numbersCount - cursor);
+
+    document.getElementById("remainingCount").value = remaining;
+
+    const el = document.getElementById("cursorInfo");
+    if (!numbersCount) {
+        el.innerText = "هنوز فایلی وارد نشده است.";
+        return;
+    }
+
+    if (cursor === 0) {
+        el.innerText = `از مجموع ${numbersCount} شماره، هنوز هیچ ارسالی برای این لیست انجام نشده است. ارسال از شمارهٔ ۱ شروع می‌شود.`;
+    } else if (remaining === 0) {
+        el.innerText = `تمام ${numbersCount} شماره این لیست قبلاً پردازش شده‌اند. برای ارسال مجدد از دکمهٔ «بازنشانی» استفاده کن.`;
+    } else {
+        el.innerText = `تا الان ${cursor} شماره از این لیست پردازش شده. ${remaining} شماره باقی مانده و ارسال بعدی از شمارهٔ ${cursor + 1} شروع می‌شود.`;
+    }
+}
+
+async function resetCursor() {
+    const token = getToken();
+    if (!token) { showStatus("batchStatus", "رمز پنل را وارد کن.", "error"); return; }
+    if (!numbers.length) {
+        showStatus("batchStatus", "ابتدا فایل Excel را وارد کن.", "error");
+        return;
+    }
+    const confirmed = confirm("با این کار، ارسال گروهی بعدی دوباره از شمارهٔ اول لیست شروع می‌شود (ممکن است باعث ارسال تکراری به شماره‌هایی شود که قبلاً پیام دریافت کرده‌اند). ادامه می‌دهی؟");
+    if (!confirmed) return;
+
+    try {
+        const response = await authFetch("/api/state/reset-cursor", { method: "POST" });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error);
+        await loadStateFromServer(false);
+        showStatus("batchStatus", "محل ارسال بازنشانی شد؛ دفعهٔ بعد از شمارهٔ اول شروع می‌شود.", "info");
+    } catch (error) {
+        showStatus("batchStatus", error.message, "error");
+    }
+}
+
+/* ---------------- Single manual send ---------------- */
+
+async function sendSelectedSingle() {
+    const selected = Array.from(document.querySelectorAll(".numberCheck:checked"));
+
+    if (selected.length === 0) {
+        showStatus("sendStatus", "حداقل یک شماره انتخاب کنید.", "error");
+        return;
+    }
+    if (selected.length > 1) {
+        showStatus("sendStatus", "برای ارسال دستی فقط یک شماره را انتخاب کن (برای چند شماره از بخش «ارسال گروهی» استفاده کن).", "error");
+        return;
+    }
+
+    const index = Number(selected[0].dataset.index);
+    const item = numbers[index];
+    const token = getToken();
+
+    if (!token) { showStatus("sendStatus", "رمز پنل را وارد کنید.", "error"); return; }
+
+    try {
+        showStatus("sendStatus", "در حال افزودن مخاطب و ارسال... (ممکن است چند ثانیه طول بکشد)", "info");
+
+        const response = await authFetch("/api/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: item.phone }),
+        });
+
+        const data = await response.json();
+
+        await loadStateFromServer(false);
+
+        if (!data.success) {
+            showStatus("sendStatus", data.error || "ارسال ناموفق بود.", "error");
+            return;
+        }
+        showStatus("sendStatus", "پیام با موفقیت ارسال شد.", "success");
+    } catch (error) {
+        showStatus("sendStatus", error.message, "error");
+    }
+}
+
+/* ---------------- Batch send ---------------- */
+
+async function startBatch() {
+    const token = getToken();
+    if (!token) { showStatus("batchStatus", "رمز پنل را وارد کنید.", "error"); return; }
+    if (!numbers.length) { showStatus("batchStatus", "ابتدا فایل Excel را وارد کنید.", "error"); return; }
+
+    let delaySec = Number(document.getElementById("delaySec").value) || Math.round(minDelayMs / 1000);
+    const minDelaySec = Math.round(minDelayMs / 1000);
+    if (delaySec < minDelaySec) {
+        delaySec = minDelaySec;
+        document.getElementById("delaySec").value = minDelaySec;
+        showStatus("batchStatus", `حداقل تأخیر مجاز ${minDelaySec} ثانیه است؛ به‌صورت خودکار تنظیم شد.`, "info");
+    }
+
+    const count = Number(document.getElementById("sendCount").value) || undefined;
+
+    try {
+        showStatus("batchStatus", "در حال شروع عملیات ارسال...", "info");
+
+        const response = await authFetch("/api/batch/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ count, delayMs: delaySec * 1000 }),
+        });
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || "شروع عملیات ناموفق بود.");
+
+        showStatus("batchStatus", `عملیات آغاز شد. تعداد این نوبت: ${data.total} | تأخیر: ${delaySec} ثانیه`, "info");
+        startPolling();
+    } catch (error) {
+        showStatus("batchStatus", error.message, "error");
+    }
+}
+
+function startPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(pollState, 2000);
+    pollState();
+}
+
+async function pollState() {
+    try {
+        const response = await authFetch("/api/state");
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error);
+
+        applyStateDuringPoll(data.state);
+
+        if (data.state.batch.status !== "running") {
+            clearInterval(pollTimer);
+            pollTimer = null;
+            if (data.state.batch.status === "done") {
+                showStatus("batchStatus", "عملیات ارسال گروهی به پایان رسید. برای ادامه، دوباره «شروع ارسال گروهی» را بزن؛ ارسال از شمارهٔ بعدی ادامه می‌یابد.", "success");
+            } else if (data.state.batch.status === "stopped") {
+                showStatus("batchStatus", "عملیات متوقف شد. ارسال بعدی از همان‌جا که متوقف شده ادامه پیدا می‌کند.", "info");
+            }
+        }
+    } catch (error) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        showStatus("batchStatus", error.message, "error");
+    }
+}
+
+function applyStateDuringPoll(state) {
+    numbers = state.numbers || [];
+    results = state.results || [];
+    renderNumbers();
+    updateReport();
+    renderCursorInfo(state);
+    renderRateLimit(state.rateLimit);
+    updateBatchStatusUI(state.batch);
+}
+
+function updateBatchStatusUI(batch) {
+    if (!batch) return;
+    const percent = batch.total ? Math.round((batch.processed / batch.total) * 100) : 0;
+    const bar = document.getElementById("progressBar");
+    bar.style.width = percent + "%";
+    bar.innerText = `${batch.processed} / ${batch.total}`;
+
+    if (batch.status === "running") {
+        showStatus("batchStatus", `در حال ارسال... (${batch.processed} از ${batch.total})`, "info");
+    }
+}
+
+async function stopBatch() {
+    const token = getToken();
+    if (!token) { showStatus("batchStatus", "رمز پنل را وارد کنید.", "error"); return; }
+    try {
+        const response = await authFetch("/api/batch/stop", { method: "POST" });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error);
+        showStatus("batchStatus", "درخواست توقف ارسال شد؛ عملیات پس از ارسال فعلی متوقف می‌شود.", "info");
+    } catch (error) {
+        showStatus("batchStatus", error.message, "error");
+    }
+}
+
+/* ---------------- Report ---------------- */
+
+function updateReport() {
+    const sent = results.filter(x => x.status === "sent").length;
+    const failed = results.filter(x => x.status === "failed").length;
+    const notFound = results.filter(x => x.status === "not_found").length;
+
+    document.getElementById("reportSummary").innerText =
+        `کل: ${results.length} | موفق: ${sent} | ناموفق: ${failed} | روبیکا ندارد: ${notFound}`;
+}
+
+async function downloadReport() {
+    if (!results.length) { alert("هنوز گزارشی برای دانلود وجود ندارد."); return; }
+    const token = getToken();
+    if (!token) { alert("رمز پنل را وارد کنید."); return; }
+
+    try {
+        const response = await authFetch("/api/report");
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "خطا در ساخت گزارش");
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "rubika-report.xlsx";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+async function clearReport() {
+    const token = getToken();
+    if (!token) { alert("رمز پنل را وارد کنید."); return; }
+    try {
+        const response = await authFetch("/api/state/clear-report", { method: "POST" });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error);
+        await loadStateFromServer(false);
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+/* ---------------- Utils ---------------- */
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+/* ---------------- Auto-load on page open ---------------- */
+
+(function initOnLoad() {
+    const savedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (savedToken) {
+        document.getElementById("token").value = savedToken;
+        loadStateFromServer(false);
+    }
+    updateCharCount();
+})();
+
+document.getElementById("token").addEventListener("change", function () {
+    if (this.value.trim()) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, this.value.trim());
+    }
+});
+</script>
+
+</body>
+</html>
