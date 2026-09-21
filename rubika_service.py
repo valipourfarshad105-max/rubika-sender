@@ -15,6 +15,7 @@ rubika_service.py
 """
 
 import asyncio
+import io
 import threading
 import mimetypes
 from pathlib import Path
@@ -22,10 +23,49 @@ from pathlib import Path
 from rubpy import Client
 from rubpy import exceptions as rubpy_exceptions
 from rubpy.crypto import Crypto
+from rubpy.methods.utilities.thumbnail import MediaThumbnail, ResultMedia
 from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
+from PIL import Image
 
 from session_utils import FullStringSession
+
+
+# ---------------------------------------------------------------------------
+# رفع باگِ خودِ کتابخانهٔ rubpy در ساخت «تصویر بندانگشتی» (thumbnail):
+#
+# وقتی Pillow نصب است، تابع اصلی MediaThumbnail.from_image در rubpy کل عکس را
+# در همان اندازهٔ اصلی (مثلاً ۳۰۲۴×۴۰۳۲ پیکسل) دوباره به PNG تبدیل می‌کند و
+# هرگز کوچکش نمی‌کند. نتیجه یک "بندانگشتی" ده‌ها کیلوبایتی است که وقتی به‌صورت
+# base64 داخل بدنهٔ درخواست جاسازی شود، از سقف حجم مجاز سرورهای روبیکا رد
+# می‌شود (خطای 413). از طرفی حذف کامل thumbnail هم راه‌حل نیست: روبیکا برای
+# پیام‌های نوع «عکس»، وجود thumb_inline را الزامی می‌داند و بدون آن با
+# INVALID_INPUT رد می‌کند.
+#
+# چون این کتابخانه دیگر نگه‌داری/به‌روزرسانی نمی‌شود، به‌جای صبر برای پچ رسمی،
+# خودمان نسخهٔ درستِ این تابع را در همان کلاس داخلی کتابخانه جایگزین می‌کنیم:
+# دقیقاً مثل شاخهٔ OpenCV خودِ کتابخانه، عکس را ۱۰ برابر کوچک می‌کنیم و بعد به
+# PNG تبدیل می‌کنیم (اندازهٔ نهایی حدود ۱-۲ کیلوبایت، دقیقاً چیزی که سرور
+# روبیکا انتظار دارد).
+def _fixed_thumbnail_from_image(cls, image: bytes):
+    try:
+        with Image.open(io.BytesIO(image)) as img:
+            img = img.convert("RGB")
+            width, height = img.size
+            thumb_w = max(1, round(width / 10))
+            thumb_h = max(1, round(height / 10))
+            small = img.resize((thumb_w, thumb_h))
+            buf = io.BytesIO()
+            small.save(buf, format="PNG")
+            return ResultMedia(buf.getvalue(), width=width, height=height)
+    except Exception:
+        # اگر به هر دلیلی عکس قابل‌پردازش نبود، به رفتار قبلی کتابخانه برنمی‌گردیم؛
+        # به‌جایش None می‌دهیم تا خودِ rubpy پیام را به‌صورت «فایل» بفرستد
+        # (بهتر از کرش‌کردن کل ارسال).
+        return None
+
+
+MediaThumbnail.from_image = classmethod(_fixed_thumbnail_from_image)
 
 # محدودیت‌های متنی. مقدار کپشن عکس روبیکا به‌طور رسمی مستند نیست،
 # پس محافظه‌کارانه همان سقف ۱۰۲۴ کاراکتریِ رایج پیام‌رسان‌ها را در نظر می‌گیریم:
@@ -194,26 +234,17 @@ class RubikaService:
         # "file_name must be specified when uploading from bytes" متوقف می‌شود.
         file_name = Path(photo_path).name
 
-        # نکتهٔ فنی مهم‌تر (باگ واقعی در خودِ کتابخانهٔ rubpy):
-        # وقتی Pillow نصب باشد، تابع ساخت "تصویر بندانگشتی" (thumbnail) داخل rubpy
-        # به‌اشتباه کل عکس را در همان اندازهٔ اصلی برمی‌گرداند (به‌جای کوچک‌کردنش).
-        # این تصویر کامل به‌صورت متن base64 داخل بدنهٔ درخواست جاسازی می‌شود و باعث
-        # می‌شود حجم درخواست از سقف مجاز سرورهای روبیکا رد شود (خطای 413 Request
-        # Entity Too Large روی همهٔ سرورها، که در ظاهر شبیه «هنگ کردن» برنامه است).
-        # چون این کتابخانه دیگر به‌روزرسانی نمی‌شود، این باگ را با غیرفعال‌کردن
-        # ساخت thumbnail دور می‌زنیم. نکتهٔ ظریف: باید دقیقاً thumb=None بدهیم
-        # نه thumb=False — چون با False، کدِ داخلی کتابخانه به‌اشتباه نوعِ پیام را
-        # از «عکس» به «فایلِ ضمیمهٔ عمومی» تغییر می‌دهد و گیرنده دیگر آن را به‌صورت
-        # عکس نمی‌بیند. با None، نوعِ پیام «عکس» درست باقی می‌ماند و فقط پیش‌نمایش
-        # ریزِ خراب ساخته نمی‌شود؛ خودِ عکسِ اصلی و کامل بدون مشکل ارسال می‌شود.
+        # از این‌جا به بعد thumbnail به‌صورت خودکار و با نسخهٔ اصلاح‌شدهٔ بالا
+        # (نه نسخهٔ خرابِ خودِ کتابخانه) ساخته می‌شود — نیازی به دستکاری پارامتر
+        # thumb نیست، مقدار پیش‌فرض True کافی است.
         if len(clean_text) <= CAPTION_LIMIT:
             await self._client.send_photo(
-                guid, photo_bytes, caption=clean_text or None, file_name=file_name, thumb=None
+                guid, photo_bytes, caption=clean_text or None, file_name=file_name
             )
             return
 
         # عکس بدون کپشن، بعد کل متن به‌صورت پیام(های) جداگانه — هیچ بریدگی‌ای رخ نمی‌دهد
-        await self._client.send_photo(guid, photo_bytes, file_name=file_name, thumb=None)
+        await self._client.send_photo(guid, photo_bytes, file_name=file_name)
         await self._send_text_async(guid, clean_text)
 
     def send_smart(self, guid: str, text: str, photo_path: str | None):
